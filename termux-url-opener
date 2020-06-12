@@ -1,0 +1,109 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+randid=$RANDOM
+folder="/data/data/com.termux/files/home/storage/shared/Youtube"
+command="--no-warnings -no-mtime --add-metadata -o $folder/%(title)s.%(ext)s"
+
+echo "YouTube downloader script v0.99"
+if ! ping -c 1 -q 8.8.8.8 2>/dev/null >/dev/null; then
+    echo "No internet connection..."
+    echo "Exiting..."
+    sleep 5
+    exit 2
+fi
+
+while true; do
+    echo "1) Audio file"
+    echo "2) Audio playlist"
+    echo ""
+    echo "3) Video file"
+    echo "4) Video playlist"
+    echo ""
+    if echo "$command" | grep -q -- '--write-sub'; then
+        echo "5) Turn off subtitles"
+    else
+        echo "5) Turn on subtitles"
+    fi
+    echo "6) Quit"
+    read -r -p "Choose and press enter: " reply
+
+    case "$reply" in
+        "1" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --no-playlist "$1"" ;;
+        "2" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --yes-playlist "$1"" ;;
+        "3" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --no-playlist "$1"" ;;
+        "4" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --yes-playlist "$1"" ;;
+	"5" )
+            if echo "$command" | grep -q -- "--write-sub"; then
+                command="$(echo "$command" | grep -v -- '--write-sub')"
+            else
+                command="$command --embed-subs --write-sub --sub-lang en --sub-format best"
+            fi
+            reset -Q
+            continue
+        ;;
+        "6" ) exit 0 ;;
+        "" | * )
+            # one of the options was not chosen, prompt again
+            # termux-wake-unlock
+            continue
+        ;;
+    esac
+    termux-wake-lock
+    if [ ! -d "$folder" ]; then
+        if ! mkdir -p "$folder"; then
+            echo "Unable to make the folder on internal storage!"
+            echo "Attempting to setup storage permission"
+            sleep 2
+            if ! termux-setup-storage; then
+                echo "Unable to obtain permission to storage."
+                exit 1
+            else
+                # termux obtained permission to use public storage from the system, try to mkdir again
+                if ! mkdir "$folder"; then
+                    echo "Unable to make the folder again!"
+                    echo "Quitting..."
+                    exit 1
+                fi
+            fi
+        fi
+    fi
+    cd "$folder"
+
+    # Update youtube-dl automatically
+    # check if last attempted update was today
+    # Returns true if modified since the beginning of the day
+    if [ -n "$(find /data/data/com.termux/files/home -maxdepth 1 -daystart -mtime -1 -type f -name ytdlupdate)" ]; then
+        echo "Recently checked for updates"
+    else
+        touch /data/data/com.termux/files/home/ytdlupdate
+        echo "Checking for youtube-dl updates..."
+        pip install --quiet --upgrade youtube-dl
+    fi
+
+    # check if an option to download a playlist was selected
+    if echo "$reply" | grep -q -E '2|4'; then
+        echo "Downloading playlist title..."
+        vidtitle="$(youtube-dl --no-playlist --get-filename --quiet --playlist-items 1 -o '%(playlist_title)s' "$1" | sed 2d)"
+        # if youtube-dl was unable to find a playlist title, we set a generic title
+        if [ $? != 0 ]; then
+            echo "Unable to determine playlist name"
+            vidtitle="playlist"
+        fi
+    else
+       echo "Downloading Title..."
+       vidtitle="$(youtube-dl --quiet "$1" --get-title | sed 2d)"
+    fi
+    termux-notification --id $randid --ongoing --group 'downloading' --title "Downloading" --content "$vidtitle"
+    echo "Beginning Download"
+    # start youtube-dl
+    youtube-dl $command
+    return=$?
+    termux-wake-unlock
+    if [[ $return -eq 0 ]]; then
+        termux-notification --id $randid --group 'downloadfinished' --title "Download Finished" --content "$vidtitle"
+        termux-media-scan "$folder"
+    else
+        termux-notification --id $randid --group 'downloadfailed' --title "Download Failed" --content "$vidtitle"
+    fi
+    exit $return
+done
