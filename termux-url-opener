@@ -1,5 +1,11 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
+#TODO
+# use --write-info-json and --load-info-json to download video info only once
+# get the same working for playlists
+# detect youtube mixes?
+# trap cleanup for json files
+
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
 command="--no-warnings -no-mtime --add-metadata -o $folder/%(title)s.%(ext)s"
@@ -28,11 +34,15 @@ while true; do
     read -r -p "Choose and press enter: " reply
 
     case "$reply" in
-        "1" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --no-playlist "$1"" ;;
-        "2" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --yes-playlist "$1"" ;;
-        "3" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --no-playlist "$1"" ;;
-        "4" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --yes-playlist "$1"" ;;
-	"5" )
+        # options 1 and 2 are audio only options (without and with playlist)
+        # download the best aac audio if available, transcode if necessary
+        "1" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --no-playlist "$1"" ; playlist=false ;;
+        "2" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --yes-playlist "$1"" ; playlist=true ;;
+        # options 3 and 4 are video options (without and with playlist)
+        # download best resolution up to 1080p, transcode to mp4 if necessary
+        "3" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --no-playlist "$1"" ; playlist=false ;;
+        "4" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --yes-playlist "$1"" ; playlist=true ;;
+	    "5" )
             if echo "$command" | grep -q -- "--write-sub"; then
                 command="$(echo "$command" | grep -v -- '--write-sub')"
             else
@@ -50,24 +60,19 @@ while true; do
     esac
     termux-wake-lock
     if [ ! -d "$folder" ]; then
-        if ! mkdir -p "$folder"; then
-            echo "Unable to make the folder on internal storage!"
-            echo "Attempting to setup storage permission"
-            sleep 2
-            if ! termux-setup-storage; then
-                echo "Unable to obtain permission to storage."
+        if ! termux-setup-storage; then
+            echo "Unable to obtain permission to storage."
+            exit 1
+        else
+            # termux obtained permission to use public storage from the system, try to make directory
+            if ! mkdir "$folder"; then
+                echo "Unable to make the folder!"
+                echo "Quitting..."
                 exit 1
-            else
-                # termux obtained permission to use public storage from the system, try to mkdir again
-                if ! mkdir "$folder"; then
-                    echo "Unable to make the folder again!"
-                    echo "Quitting..."
-                    exit 1
-                fi
             fi
         fi
     fi
-    cd "$folder"
+    cd "$folder" 
 
     # Update youtube-dl automatically
     # check if last attempted update was today
@@ -81,7 +86,7 @@ while true; do
     fi
 
     # check if an option to download a playlist was selected
-    if echo "$reply" | grep -q -E '2|4'; then
+    if [[ "$playlist" == 'true' ]]; then
         echo "Downloading playlist title..."
         vidtitle="$(youtube-dl --no-playlist --get-filename --quiet --playlist-items 1 -o '%(playlist_title)s' "$1" | sed 2d)"
         # if youtube-dl was unable to find a playlist title, we set a generic title
