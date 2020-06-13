@@ -80,9 +80,10 @@ while true; do
     if [ -n "$(find /data/data/com.termux/files/home -maxdepth 1 -daystart -mtime -1 -type f -name ytdlupdate)" ]; then
         echo "Recently checked for updates"
     else
-        touch /data/data/com.termux/files/home/ytdlupdate
         echo "Checking for youtube-dl updates..."
-        pip install --quiet --upgrade youtube-dl
+        if pip install --quiet --upgrade youtube-dl; then
+            touch /data/data/com.termux/files/home/ytdlupdate
+        fi
     fi
 
     # check if an option to download a playlist was selected
