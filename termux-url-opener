@@ -2,7 +2,6 @@
 
 #TODO
 # detect youtube mixes?
-# trap cleanup for notifications
 
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
@@ -105,6 +104,11 @@ while true; do
             exit 1
         fi
     fi
+    # trap exit and interrupt to cleanup a notification
+    trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle";  termux-wake-unlock; trap - INT TERM; kill -s INT "$$"' INT
+    trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; termux-wake-unlock; trap - TERM; exit 1' TERM ERR HUP 
+
+
     termux-notification --id $randid --ongoing --group 'downloading' --title "Downloading" --content "$vidtitle"
     echo "Beginning Download"
     # start youtube-dl
@@ -118,5 +122,6 @@ while true; do
     else
         termux-notification --id $randid --group 'downloadfailed' --title "Download Failed" --content "$vidtitle"
     fi
+    trap - TERM
     exit $return
 done
