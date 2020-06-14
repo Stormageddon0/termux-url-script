@@ -1,14 +1,12 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 #TODO
-# use --write-info-json and --load-info-json to download video info only once
-# get the same working for playlists
 # detect youtube mixes?
-# trap cleanup for json files
+# trap cleanup for notifications
 
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
-command="--no-warnings -no-mtime --add-metadata -o $folder/%(title)s.%(ext)s"
+command="--no-warnings --no-mtime --add-metadata -o $folder/%(title)s.%(ext)s"
 
 echo "YouTube downloader script v0.99"
 if ! ping -c 1 -q 8.8.8.8 2>/dev/null >/dev/null; then
@@ -36,12 +34,12 @@ while true; do
     case "$reply" in
         # options 1 and 2 are audio only options (without and with playlist)
         # download the best aac audio if available, transcode if necessary
-        "1" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --no-playlist "$1"" ; playlist=false ;;
-        "2" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --yes-playlist "$1"" ; playlist=true ;;
+        "1" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --no-playlist \"$1\"" ; playlist=false ;;
+        "2" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --yes-playlist \"$1\"" ; playlist=true ;;
         # options 3 and 4 are video options (without and with playlist)
         # download best resolution up to 1080p, transcode to mp4 if necessary
-        "3" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --no-playlist "$1"" ; playlist=false ;;
-        "4" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --yes-playlist "$1"" ; playlist=true ;;
+        "3" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --no-playlist \"$1\"" ; playlist=false ;;
+        "4" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --yes-playlist \"$1\"" ; playlist=true ;;
 	    "5" )
             if echo "$command" | grep -q -- "--write-sub"; then
                 command="$(echo "$command" | grep -v -- '--write-sub')"
@@ -72,7 +70,7 @@ while true; do
             fi
         fi
     fi
-    cd "$folder" 
+    cd "$folder" || exit 1
 
     # Update youtube-dl automatically
     # check if last attempted update was today
@@ -86,23 +84,32 @@ while true; do
         fi
     fi
 
+    # download video information, then scrape the proper information for the title or playlist name
+    echo "Downloading link metadata..."
     # check if an option to download a playlist was selected
     if [[ "$playlist" == 'true' ]]; then
-        echo "Downloading playlist title..."
-        vidtitle="$(youtube-dl --no-playlist --get-filename --quiet --playlist-items 1 -o '%(playlist_title)s' "$1" | sed 2d)"
+        # store json data so we only have to download it once
+        json="$(youtube-dl --dump-json --yes-playlist "$1")"
+        vidtitle=$(echo "$json" | jq '.playlist' | sed '1!d')
         # if youtube-dl was unable to find a playlist title, we set a generic title
-        if [ $? != 0 ]; then
+        if [[ "$vidtitle" == "null" ]]; then
             echo "Unable to determine playlist name"
             vidtitle="playlist"
         fi
     else
-       echo "Downloading Title..."
-       vidtitle="$(youtube-dl --quiet "$1" --get-title | sed 2d)"
+        json="$(youtube-dl --dump-json --no-playlist "$1")"
+        vidtitle="$(echo "$json" | jq '.title')"
+        if [[ "$vidtitle" == "null" ]]; then
+            echo "Failed to download video information."
+            sleep 5
+            exit 1
+        fi
     fi
     termux-notification --id $randid --ongoing --group 'downloading' --title "Downloading" --content "$vidtitle"
     echo "Beginning Download"
     # start youtube-dl
-    youtube-dl $command
+    #shellcheck disable=SC2086
+    youtube-dl --load-info-json <(echo "$json") $command
     return=$?
     termux-wake-unlock
     if [[ $return -eq 0 ]]; then
