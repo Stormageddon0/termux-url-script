@@ -7,7 +7,7 @@ randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
 command="--no-warnings --no-mtime --add-metadata -o $folder/%(title)s.%(ext)s"
 
-echo "YouTube downloader script v0.99"
+echo "YouTube downloader script v0.105"
 if ! ping -c 1 -q 8.8.8.8 2>/dev/null >/dev/null; then
     echo "No internet connection..."
     echo "Exiting..."
