@@ -2,7 +2,6 @@
 
 #TODO
 # detect youtube mixes?
-# Fix case when playlist selected with single video input
 
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
@@ -88,14 +87,19 @@ while true; do
     echo "Downloading link metadata..."
     # check if an option to download a playlist was selected
     if [[ "$playlist" == 'true' ]]; then
-        # store json data so we only have to download it once
+        # cache download data so we only have to download it once
         youtube-dl --skip-download --write-info-json --yes-playlist "$1" --output "$randid-%(autonumber)03d"
-        vidtitle=$( { printf 'Playlist: ' ; jq --raw-output '.playlist' <$randid-001.info.json ;} )
-        # if youtube-dl was unable to find a playlist title, we set a generic title
-        if [[ "$vidtitle" == "Playlist: null" ]]; then
-            echo "Unable to determine playlist name"
-            vidtitle="playlist"
-        fi
+        # check the number of entries in the playlist, if there is only one or is null, then get the Title instead of the playlist name.
+        case "$(jq --raw-output '.n_entries' <$randid-001.info.json)" in
+            "0" | "1" | "null" )
+                echo "link is a single video, selecting single"
+                playlist="false"
+                vidtitle=$( jq --raw-output '.title' <$randid-001.info.json )
+            ;;
+            * )
+                vidtitle=$( { printf 'Playlist: ' ; jq --raw-output '.playlist' <$randid-001.info.json ;} )
+            ;;
+        esac
     else
         youtube-dl --skip-download --write-info-json --no-playlist "$1" --output "$randid-%(autonumber)03d"
         vidtitle="$(jq --raw-output '.title' <$randid-001.info.json)"
