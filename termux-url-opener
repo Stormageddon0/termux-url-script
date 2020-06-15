@@ -90,9 +90,9 @@ while true; do
     if [[ "$playlist" == 'true' ]]; then
         # store json data so we only have to download it once
         youtube-dl --skip-download --write-info-json --yes-playlist "$1" --output "$randid-%(autonumber)03d"
-        vidtitle=$( jq --raw-output '.playlist' <$randid-001.info.json )
+        vidtitle=$( { printf 'Playlist: ' ; jq --raw-output '.playlist' <$randid-001.info.json ;} )
         # if youtube-dl was unable to find a playlist title, we set a generic title
-        if [[ "$vidtitle" == "null" ]]; then
+        if [[ "$vidtitle" == "Playlist: null" ]]; then
             echo "Unable to determine playlist name"
             vidtitle="playlist"
         fi
