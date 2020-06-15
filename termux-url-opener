@@ -2,6 +2,7 @@
 
 #TODO
 # detect youtube mixes?
+# Fix case when playlist selected with single video input
 
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
@@ -88,16 +89,16 @@ while true; do
     # check if an option to download a playlist was selected
     if [[ "$playlist" == 'true' ]]; then
         # store json data so we only have to download it once
-        json="$(youtube-dl --dump-json --yes-playlist "$1")"
-        vidtitle=$(echo "$json" | jq '.playlist' | sed '1!d')
+        youtube-dl --skip-download --write-info-json --yes-playlist "$1" --output "$randid-%(autonumber)03d"
+        vidtitle=$( jq --raw-output '.playlist' <$randid-001.info.json )
         # if youtube-dl was unable to find a playlist title, we set a generic title
         if [[ "$vidtitle" == "null" ]]; then
             echo "Unable to determine playlist name"
             vidtitle="playlist"
         fi
     else
-        json="$(youtube-dl --dump-json --no-playlist "$1")"
-        vidtitle="$(echo "$json" | jq '.title')"
+        youtube-dl --skip-download --write-info-json --no-playlist "$1" --output "$randid-%(autonumber)03d"
+        vidtitle="$(jq --raw-output '.title' <$randid-001.info.json)"
         if [[ "$vidtitle" == "null" ]]; then
             echo "Failed to download video information."
             sleep 5
@@ -106,15 +107,18 @@ while true; do
     fi
     # trap exit and interrupt to cleanup a notification
     trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle";  termux-wake-unlock; trap - INT TERM; kill -s INT "$$"' INT
-    trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; termux-wake-unlock; trap - TERM; exit 1' TERM ERR HUP 
+    trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; termux-wake-unlock; trap - TERM; exit 1' TERM HUP 
 
 
     termux-notification --id $randid --ongoing --group 'downloading' --title "Downloading" --content "$vidtitle"
     echo "Beginning Download"
     # start youtube-dl
-    #shellcheck disable=SC2086
-    youtube-dl --load-info-json <(echo "$json") $command
-    return=$?
+    for jsonfile in "$randid"-*.info.json
+    do
+        #shellcheck disable=SC2086
+        youtube-dl --load-info-json "$jsonfile" $command
+        return=$?
+    done
     termux-wake-unlock
     if [[ $return -eq 0 ]]; then
         termux-notification --id $randid --group 'downloadfinished' --title "Download Finished" --content "$vidtitle"
