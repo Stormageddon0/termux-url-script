@@ -91,7 +91,7 @@ while true; do
     # check if an option to download a playlist was selected
     if [[ "$playlist" == 'true' ]]; then
         # cache download data so we only have to download it once
-        youtube-dl --skip-download --write-info-json --yes-playlist "$1" --output "$randid-%(autonumber)03d"
+        youtube-dl --quiet --skip-download --write-info-json --yes-playlist "$1" --output "$randid-%(autonumber)03d"
         # check the number of entries in the playlist, if there is only one or is null, then get the Title instead of the playlist name.
         case "$(jq --raw-output '.n_entries' <$randid-001.info.json)" in
             "0" | "1" | "null" )
@@ -104,7 +104,7 @@ while true; do
             ;;
         esac
     else
-        youtube-dl --skip-download --write-info-json --no-playlist "$1" --output "$randid-%(autonumber)03d"
+        youtube-dl --quiet --skip-download --write-info-json --no-playlist "$1" --output "$randid-%(autonumber)03d"
         vidtitle="$(jq --raw-output '.title' <$randid-001.info.json)"
         if [[ "$vidtitle" == "null" ]]; then
             echo "Failed to download video information."
