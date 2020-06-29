@@ -1,0 +1,31 @@
+#! /data/data/com.termux/files/usr/bin/bash
+# TODO: add ability to download updates from git
+
+log="install-script-log.log"
+
+trap 'echo "Error while installing dependencies, check the log"; exit 1' ERR INT
+echo "Installing dependencies..."
+echo "$ apt-get update" >$log
+apt-get update >>$log
+echo "$ apt-get install -y python jq ffmpeg git termux-api" >>$log
+apt-get install --assume-yes python jq ffmpeg git termux-api >>$log 2>/dev/null
+echo "$ pip install --upgrade -q pip youtube-dl" >>$log
+pip install --upgrade pip youtube-dl >>$log
+echo "Install the Termux:API app"
+
+trap - ERR INT
+
+[[ -d ~/bin ]] || mkdir ~/bin
+if ! { echo "$PATH" | grep -q '/com.termux/files/home/bin'; }; then
+  echo "Adding $HOME/bin to the PATH"
+  cat >>~/.bashrc << EOF
+if [[ -d ~/bin ]]; then
+  PATH=~/bin:"$PATH"
+fi
+EOF
+fi
+
+echo "Installing symlinks"
+ln --symbolic --relative --backup=simple ~/termux-url-script/termux-url-opener ~/bin/termux-url-opener
+ln --symbolic --relative --backup=simple ~/termux-url-script/termux-url-opener ~/bin/termux-file-editor
+echo "Done"
