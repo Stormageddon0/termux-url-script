@@ -98,8 +98,8 @@ trap 'rm $randid-*.info.json; trap - TERM; exit 1' TERM HUP
 # check if an option to download a playlist was selected
 if [[ "$playlist" == 'true' ]]; then
     # cache download data so we only have to download it once
-    # --skip-errors so youtube-dl can skip unavailable items
-    youtube-dl "${jsoncommand[@]}" --yes-playlist --skip-errors "$1"
+    # --ignore-errors so youtube-dl can skip unavailable items
+    youtube-dl "${jsoncommand[@]}" --yes-playlist --ignore-errors "$1"
     # check the number of entries in the playlist, if there is only one or is null, then get the Title instead of the playlist name.
     case "$(jq --raw-output '.n_entries' <$randid-001.info.json)" in
         "0" | "1" | "null" )
