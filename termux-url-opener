@@ -3,6 +3,7 @@
 #TODO
 # detect youtube mixes?
 # embed thumbnails for videos
+# echo names of video/audio during metadata download
 
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
@@ -59,88 +60,89 @@ while true; do
             continue
         ;;
     esac
-    termux-wake-lock
-    if [ ! -d "$folder" ]; then
-        if ! termux-setup-storage; then
-            echo "Unable to obtain permission to storage."
-            exit 1
-        else
-            # termux obtained permission to use public storage from the system, try to make directory
-            if ! mkdir "$folder"; then
-                echo "Unable to make the folder!"
-                echo "Quitting..."
-                exit 1
-            fi
-        fi
-    fi
-    cd "$folder" || exit 1
-
-    # Update youtube-dl automatically
-    # check if last attempted update was today
-    # Returns true if modified since the beginning of the day
-    if [ -n "$(find /data/data/com.termux/files/home -maxdepth 1 -daystart -mtime -1 -type f -name ytdlupdate)" ]; then
-        echo "Recently checked for updates"
-    else
-        echo "Checking for youtube-dl updates..."
-        if pip install --quiet --upgrade youtube-dl; then
-            touch /data/data/com.termux/files/home/ytdlupdate
-        fi
-    fi
-
-    # download video information, then scrape the proper information for the title or playlist name
-    echo "Downloading link metadata..."
-    # cleanup json files if we get interuppted
-    trap 'rm $randid-*.info.json; trap - INT TERM; kill -s INT "$$"' INT
-    trap 'rm $randid-*.info.json; trap - TERM; exit 1' TERM HUP
-    # check if an option to download a playlist was selected
-    if [[ "$playlist" == 'true' ]]; then
-        # cache download data so we only have to download it once
-        youtube-dl "${jsoncommand[@]}" --yes-playlist "$1"
-        # check the number of entries in the playlist, if there is only one or is null, then get the Title instead of the playlist name.
-        case "$(jq --raw-output '.n_entries' <$randid-001.info.json)" in
-            "0" | "1" | "null" )
-                echo "link is a single video, selecting single"
-                playlist="false"
-                vidtitle=$(jq --raw-output '.title' <$randid-001.info.json)
-            ;;
-            * )
-                vidtitle=$({ printf 'Playlist: '; jq --raw-output '.playlist' <$randid-001.info.json;} )
-                # append --skip-errors to jsoncommand for playlists so youtube-dl can skip unavailable items
-                jsoncommand+=(--skip-errors)
-            ;;
-        esac
-    else
-        youtube-dl "${jsoncommand[@]}" --no-playlist "$1"
-        vidtitle="$(jq --raw-output '.title' <$randid-001.info.json)"
-        if [[ "$vidtitle" == "null" ]]; then
-            echo "Failed to download video information."
-            sleep 5
-            exit 1
-        fi
-    fi
-    # trap exit and interrupt to cleanup a notification
-    trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*.info.json; termux-wake-unlock; trap - INT TERM; kill -s INT "$$"' INT
-    trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*.info.json; termux-wake-unlock; trap - TERM; exit 1' TERM HUP
-
-    termux-notification --id $randid --ongoing --group 'downloading' --title "Downloading" --content "$vidtitle"
-    echo "Beginning Download"
-    # start youtube-dl
-    for jsonfile in "$randid"-*.info.json
-    do
-        #shellcheck disable=SC2086
-        youtube-dl --load-info-json "$jsonfile" "${command[@]}"
-        return=$((return + $?))
-        # remove json files
-        rm "$jsonfile"
-    done
-    termux-wake-unlock
-    if [[ $return -eq 0 ]]; then
-        termux-notification --id $randid --group 'downloadfinished' --title "Download Finished" --content "$vidtitle"
-        termux-media-scan "$folder"
-    else
-        echo "There were errors downloading some files ($return)"
-        termux-notification --id $randid --group 'downloadfailed' --title "Download Failed" --content "$vidtitle"
-    fi
-    trap - TERM
-    exit $return
+    break
 done
+termux-wake-lock
+if [ ! -d "$folder" ]; then
+    if ! termux-setup-storage; then
+        echo "Unable to obtain permission to storage."
+        exit 1
+    else
+        # termux obtained permission to use public storage from the system, try to make directory
+        if ! mkdir "$folder"; then
+            echo "Unable to make the folder!"
+            echo "Quitting..."
+            exit 1
+        fi
+    fi
+fi
+cd "$folder" || exit 1
+
+# Update youtube-dl automatically
+# check if last attempted update was today
+# Returns true if modified since the beginning of the day
+if [ -n "$(find /data/data/com.termux/files/home -maxdepth 1 -daystart -mtime -1 -type f -name ytdlupdate)" ]; then
+    echo "Recently checked for updates"
+else
+    echo "Checking for youtube-dl updates..."
+    if pip install --quiet --upgrade youtube-dl; then
+        touch /data/data/com.termux/files/home/ytdlupdate
+    fi
+fi
+
+# download video information, then scrape the proper information for the title or playlist name
+echo "Downloading link metadata..."
+# cleanup json files if we get interuppted
+trap 'rm $randid-*.info.json; trap - INT TERM; kill -s INT "$$"' INT
+trap 'rm $randid-*.info.json; trap - TERM; exit 1' TERM HUP
+# check if an option to download a playlist was selected
+if [[ "$playlist" == 'true' ]]; then
+    # cache download data so we only have to download it once
+    youtube-dl "${jsoncommand[@]}" --yes-playlist "$1"
+    # check the number of entries in the playlist, if there is only one or is null, then get the Title instead of the playlist name.
+    case "$(jq --raw-output '.n_entries' <$randid-001.info.json)" in
+        "0" | "1" | "null" )
+            echo "link is a single video, selecting single"
+            playlist="false"
+            vidtitle=$(jq --raw-output '.title' <$randid-001.info.json)
+        ;;
+        * )
+            vidtitle=$({ printf 'Playlist: '; jq --raw-output '.playlist' <$randid-001.info.json;} )
+            # append --skip-errors to jsoncommand for playlists so youtube-dl can skip unavailable items
+            jsoncommand+=(--skip-errors)
+        ;;
+    esac
+else
+    youtube-dl "${jsoncommand[@]}" --no-playlist "$1"
+    vidtitle="$(jq --raw-output '.title' <$randid-001.info.json)"
+    if [[ "$vidtitle" == "null" ]]; then
+        echo "Failed to download video information."
+        sleep 5
+        exit 1
+    fi
+fi
+# trap exit and interrupt to cleanup a notification
+trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*.info.json; termux-wake-unlock; trap - INT TERM; kill -s INT "$$"' INT
+trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*.info.json; termux-wake-unlock; trap - TERM; exit 1' TERM HUP
+
+termux-notification --id $randid --ongoing --group 'downloading' --title "Downloading" --content "$vidtitle"
+echo "Beginning Download"
+# start youtube-dl
+for jsonfile in "$randid"-*.info.json
+do
+    #shellcheck disable=SC2086
+    youtube-dl --load-info-json "$jsonfile" "${command[@]}"
+    return=$((return + $?))
+    # remove json files
+    rm "$jsonfile"
+done
+termux-wake-unlock
+if [[ $return -eq 0 ]]; then
+    termux-notification --id $randid --group 'downloadfinished' --title "Download Finished" --content "$vidtitle"
+    termux-media-scan "$folder"
+else
+    echo "There were errors downloading some files ($return)"
+    termux-notification --id $randid --group 'downloadfailed' --title "Download Failed" --content "$vidtitle"
+fi
+trap - TERM
+exit $return
