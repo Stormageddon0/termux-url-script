@@ -2,10 +2,13 @@
 
 #TODO
 # detect youtube mixes?
+# embed thumbnails for videos
+# remove json files as videos are downloaded
 
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
-command="--no-warnings --no-mtime --add-metadata -o $folder/%(title)s.%(ext)s"
+command=(--no-warnings --no-mtime --add-metadata -o "$folder/%(title)s.%(ext)s")
+jsoncommand=(--quiet --skip-download --write-info-json --output "$randid-%(autonumber)03d")
 
 echo "YouTube downloader script v0.105"
 if ! ping -c 1 -q 8.8.8.8 2>/dev/null >/dev/null; then
@@ -22,7 +25,7 @@ while true; do
     echo "3) Video file"
     echo "4) Video playlist"
     echo ""
-    if echo "$command" | grep -q -- '--write-sub'; then
+    if echo "${command[@]}" | grep -q -- '--write-sub'; then
         echo "5) Turn off subtitles"
     else
         echo "5) Turn on subtitles"
@@ -33,17 +36,19 @@ while true; do
     case "$reply" in
         # options 1 and 2 are audio only options (without and with playlist)
         # download the best aac audio if available, transcode if necessary
-        "1" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --no-playlist \"$1\"" ; playlist=false ;;
-        "2" ) command="$command --audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio --yes-playlist \"$1\"" ; playlist=true ;;
+        "1" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1") ; playlist=false ;;
+        "2" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1") ; playlist=true ;;
         # options 3 and 4 are video options (without and with playlist)
         # download best resolution up to 1080p, transcode to mp4 if necessary
-        "3" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --no-playlist \"$1\"" ; playlist=false ;;
-        "4" ) command="$command --merge-output-format mp4 --format (bestvideo+bestaudio/best)[height<=1080] --yes-playlist \"$1\"" ; playlist=true ;;
+        "3" ) command+=(--merge-output-format mp4 --format "(bestvideo+bestaudio/best)[height<=1080]" "$1"); playlist=false ;;
+        "4" ) command+=(--merge-output-format mp4 --format "(bestvideo+bestaudio/best)[height<=1080]" "$1"); playlist=true ;;
 	    "5" )
-            if echo "$command" | grep -q -- "--write-sub"; then
-                command="$(echo "$command" | grep -v -- '--write-sub')"
+            if echo "${command[@]}" | grep -q -- '--write-sub'; then
+                # chop off the last 6 values in ${command}, preserving existing word splitting
+                # shellcheck disable=SC2206
+                command=(${command[@]:0:${#command[*]}-6})
             else
-                command="$command --embed-subs --write-sub --sub-lang en --sub-format best"
+                command+=(--embed-subs --write-sub --sub-lang en --sub-format best)
             fi
             reset -Q
             continue
@@ -91,20 +96,22 @@ while true; do
     # check if an option to download a playlist was selected
     if [[ "$playlist" == 'true' ]]; then
         # cache download data so we only have to download it once
-        youtube-dl --quiet --skip-download --write-info-json --yes-playlist "$1" --output "$randid-%(autonumber)03d"
+        youtube-dl "${jsoncommand[@]}" --yes-playlist "$1"
         # check the number of entries in the playlist, if there is only one or is null, then get the Title instead of the playlist name.
         case "$(jq --raw-output '.n_entries' <$randid-001.info.json)" in
             "0" | "1" | "null" )
                 echo "link is a single video, selecting single"
                 playlist="false"
-                vidtitle=$( jq --raw-output '.title' <$randid-001.info.json )
+                vidtitle=$(jq --raw-output '.title' <$randid-001.info.json)
             ;;
             * )
-                vidtitle=$( { printf 'Playlist: ' ; jq --raw-output '.playlist' <$randid-001.info.json ;} )
+                vidtitle=$({ printf 'Playlist: '; jq --raw-output '.playlist' <$randid-001.info.json;} )
+                # append --skip-errors to jsoncommand for playlists so youtube-dl can skip unavailable items
+                jsoncommand+=(--skip-errors)
             ;;
         esac
     else
-        youtube-dl --quiet --skip-download --write-info-json --no-playlist "$1" --output "$randid-%(autonumber)03d"
+        youtube-dl "${jsoncommand[@]}" --no-playlist "$1"
         vidtitle="$(jq --raw-output '.title' <$randid-001.info.json)"
         if [[ "$vidtitle" == "null" ]]; then
             echo "Failed to download video information."
@@ -122,8 +129,8 @@ while true; do
     for jsonfile in "$randid"-*.info.json
     do
         #shellcheck disable=SC2086
-        youtube-dl --load-info-json "$jsonfile" $command
-        return=$?
+        youtube-dl --load-info-json "$jsonfile" "${command[@]}"
+        return=$((return + $?))
     done
     # remove json files
     rm $randid-*.info.json
@@ -132,6 +139,7 @@ while true; do
         termux-notification --id $randid --group 'downloadfinished' --title "Download Finished" --content "$vidtitle"
         termux-media-scan "$folder"
     else
+        echo "There were errors downloading some files ($return)"
         termux-notification --id $randid --group 'downloadfailed' --title "Download Failed" --content "$vidtitle"
     fi
     trap - TERM
