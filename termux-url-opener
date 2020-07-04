@@ -3,7 +3,6 @@
 #TODO
 # detect youtube mixes?
 # embed thumbnails for videos
-# remove json files as videos are downloaded
 
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
@@ -131,9 +130,9 @@ while true; do
         #shellcheck disable=SC2086
         youtube-dl --load-info-json "$jsonfile" "${command[@]}"
         return=$((return + $?))
+        # remove json files
+        rm "$jsonfile"
     done
-    # remove json files
-    rm $randid-*.info.json
     termux-wake-unlock
     if [[ $return -eq 0 ]]; then
         termux-notification --id $randid --group 'downloadfinished' --title "Download Finished" --content "$vidtitle"
