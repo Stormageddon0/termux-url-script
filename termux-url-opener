@@ -43,13 +43,15 @@ while true; do
         # download best resolution up to 1080p, transcode to mp4 if necessary
         "3" ) command+=(--merge-output-format mp4 --format "(bestvideo+bestaudio/best)[height<=1080]" "$1"); playlist=false ;;
         "4" ) command+=(--merge-output-format mp4 --format "(bestvideo+bestaudio/best)[height<=1080]" "$1"); playlist=true ;;
-	    "5" )
+        "5" )
             if echo "${command[@]}" | grep -q -- '--write-sub'; then
                 # chop off the last 6 values in ${command}, preserving existing word splitting
                 # shellcheck disable=SC2206
                 command=(${command[@]:0:${#command[*]}-6})
+                jsoncommand=(${jsoncommand[@]:0:${#jsoncommand[*]}-6})
             else
                 command+=(--embed-subs --write-sub --sub-lang en --sub-format best)
+                jsoncommand+=(--embed-subs --write-sub --sub-lang en --sub-format best)
             fi
             reset -Q
             continue
