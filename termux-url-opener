@@ -4,7 +4,6 @@
 # detect youtube mixes?
 # embed thumbnails for videos
 # echo names of video/audio during metadata download
-# investigate and fix subtitles not being downloaded
 
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
@@ -124,8 +123,8 @@ else
     fi
 fi
 # trap exit and interrupt to cleanup a notification
-trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*.info.json; termux-wake-unlock; trap - INT TERM; kill -s INT "$$"' INT
-trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*.info.json; termux-wake-unlock; trap - TERM; exit 1' EXIT TERM HUP
+trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*; termux-wake-unlock; trap - INT TERM; kill -s INT "$$"' INT
+trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*; termux-wake-unlock; trap - TERM; exit 1' EXIT TERM HUP
 
 termux-notification --id $randid --ongoing --group 'downloading' --title "Downloading" --content "$vidtitle"
 echo "Beginning Download"
@@ -137,6 +136,8 @@ do
     return=$((return + $?))
     # remove json files
     rm "$jsonfile"
+    # remove subtitle files
+    rm "$randid"-*.en.*
 done
 termux-wake-unlock
 if [[ $return -eq 0 ]]; then
