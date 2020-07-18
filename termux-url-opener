@@ -97,7 +97,7 @@ fi
 echo "Downloading link metadata..."
 # cleanup json files if we get interuppted
 trap 'rm $randid-*.info.json; termux-wake-unlock; trap - INT TERM; kill -s INT "$$"' INT
-trap 'rm $randid-*.info.json; termux-wake-unlock; trap - TERM; exit 1' TERM HUP
+trap 'rm $randid-*.info.json; termux-wake-unlock; trap - TERM; exit 1' EXIT TERM HUP
 # check if an option to download a playlist was selected
 if [[ "$playlist" == 'true' ]]; then
     # cache download data so we only have to download it once
@@ -125,7 +125,7 @@ else
 fi
 # trap exit and interrupt to cleanup a notification
 trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*.info.json; termux-wake-unlock; trap - INT TERM; kill -s INT "$$"' INT
-trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*.info.json; termux-wake-unlock; trap - TERM; exit 1' TERM HUP
+trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*.info.json; termux-wake-unlock; trap - TERM; exit 1' EXIT TERM HUP
 
 termux-notification --id $randid --ongoing --group 'downloading' --title "Downloading" --content "$vidtitle"
 echo "Beginning Download"
@@ -146,5 +146,5 @@ else
     echo "There were errors downloading some files ($return)"
     termux-notification --id $randid --group 'downloadfailed' --title "Download Failed" --content "$vidtitle"
 fi
-trap - TERM
+trap - EXIT TERM
 exit $return
