@@ -47,6 +47,7 @@ while true; do
                 # chop off the last 6 values in ${command}, preserving existing word splitting
                 # shellcheck disable=SC2206
                 command=(${command[@]:0:${#command[*]}-6})
+                # shellcheck disable=SC2206
                 jsoncommand=(${jsoncommand[@]:0:${#jsoncommand[*]}-6})
             else
                 command+=(--embed-subs --write-sub --sub-lang en --sub-format best)
