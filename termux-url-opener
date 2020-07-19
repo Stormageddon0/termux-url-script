@@ -95,8 +95,8 @@ fi
 # download video information, then scrape the proper information for the title or playlist name
 echo "Downloading link metadata..."
 # cleanup json files if we get interuppted
-trap 'rm $randid-*.info.json; termux-wake-unlock; trap - INT TERM; kill -s INT "$$"' INT
-trap 'rm $randid-*.info.json; termux-wake-unlock; trap - TERM; exit 1' EXIT TERM HUP
+trap 'rm $randid-*.info.json; termux-wake-unlock; trap - EXIT INT TERM; kill -s INT "$$"' INT
+trap 'rm $randid-*.info.json; termux-wake-unlock; trap - EXIT TERM; exit 1' EXIT TERM HUP
 # check if an option to download a playlist was selected
 if [[ "$playlist" == 'true' ]]; then
     # cache download data so we only have to download it once
@@ -123,8 +123,8 @@ else
     fi
 fi
 # trap exit and interrupt to cleanup a notification
-trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*; termux-wake-unlock; trap - INT TERM; kill -s INT "$$"' INT
-trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*; termux-wake-unlock; trap - TERM; exit 1' EXIT TERM HUP
+trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*; termux-wake-unlock; trap - EXIT INT TERM; kill -s INT "$$"' INT
+trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*; termux-wake-unlock; trap - EXIT TERM; exit 1' EXIT TERM HUP
 
 termux-notification --id $randid --ongoing --group 'downloading' --title "Downloading" --content "$vidtitle"
 echo "Beginning Download"
