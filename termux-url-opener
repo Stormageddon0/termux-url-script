@@ -134,19 +134,26 @@ for jsonfile in "$randid"-*.info.json
 do
     #shellcheck disable=SC2086
     youtube-dl --load-info-json "$jsonfile" "${command[@]}"
-    return=$((return + $?))
-    # remove json files
-    rm "$jsonfile"
-    # remove subtitle files
-    rm "$randid"-*.en.*
+    youtubedlExitCodes+=($?)
+    if [[ ${youtubedlExitCodes[${#youtubedlExitCodes[*]}]} == 0 ]]; then
+        # remove json files
+        rm "$jsonfile"
+        # remove subtitle files
+        rm "$randid"-*.en.*
+    else
+        vidtitle+=($'\n'"$(jq --raw-output ".title" "$jsonfile")")
+    fi
 done
 termux-wake-unlock
+for i in "${youtubedlExitCodes[@]}"; do
+    return=$(( return + i ))
+done
 if [[ $return -eq 0 ]]; then
-    termux-notification --id $randid --group 'downloadfinished' --title "Download Finished" --content "$vidtitle"
+    termux-notification --id $randid --group 'downloadfinished' --title "Download Finished" --content "${vidtitle[*]}"
     termux-media-scan "$folder"
 else
     echo "There were errors downloading some files ($return)"
-    termux-notification --id $randid --group 'downloadfailed' --title "Download Failed" --content "$vidtitle"
+    termux-notification --id $randid --group 'downloadfailed' --title "Download Failed" --content "${vidtitle[*]}"
 fi
 trap - EXIT TERM
 exit $return
