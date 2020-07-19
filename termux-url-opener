@@ -135,7 +135,7 @@ do
     #shellcheck disable=SC2086
     youtube-dl --load-info-json "$jsonfile" "${command[@]}"
     youtubedlExitCodes+=($?)
-    if [[ ${youtubedlExitCodes[${#youtubedlExitCodes[*]}]} == 0 ]]; then
+    if [[ ${youtubedlExitCodes[${#youtubedlExitCodes[*]}]} -eq 0 ]]; then
         # remove json files
         rm "$jsonfile"
         # remove subtitle files
