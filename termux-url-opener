@@ -9,6 +9,8 @@ randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
 command=(--no-warnings --no-mtime --add-metadata -o "$folder/%(title)s.%(ext)s")
 jsoncommand=(--quiet --skip-download --write-info-json --output "$randid-%(autonumber)03d")
+subs="--embed-subs --write-sub --sub-lang enUS,en-US,en --sub-format best"
+
 
 echo "YouTube downloader script v0.105"
 if ! ping -c 1 -q 8.8.8.8 2>/dev/null >/dev/null; then
@@ -50,8 +52,8 @@ while true; do
                 # shellcheck disable=SC2206
                 jsoncommand=(${jsoncommand[@]:0:${#jsoncommand[*]}-6})
             else
-                command+=(--embed-subs --write-sub --sub-lang en --sub-format best)
-                jsoncommand+=(--embed-subs --write-sub --sub-lang en --sub-format best)
+                command+=($subs)
+                jsoncommand+=($subs)
             fi
             reset -Q
             continue
@@ -140,6 +142,8 @@ do
         rm "$jsonfile"
         # remove subtitle files
         rm "$randid"-*.en.* 2>/dev/null
+        rm "$randid"-*.enUS.* 2>/dev/null
+        rm "$randid"-*.en-US.* 2>/dev/null
     else
         vidtitle+=($'\n'"$(jq --raw-output ".title" "$jsonfile")")
     fi
