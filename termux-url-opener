@@ -139,7 +139,7 @@ do
         # remove json files
         rm "$jsonfile"
         # remove subtitle files
-        rm "$randid"-*.en.*
+        rm "$randid"-*.en.* 2>/dev/null
     else
         vidtitle+=($'\n'"$(jq --raw-output ".title" "$jsonfile")")
     fi
