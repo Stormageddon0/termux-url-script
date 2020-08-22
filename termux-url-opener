@@ -2,15 +2,14 @@
 
 #TODO
 # detect youtube mixes?
-# embed thumbnails for videos
+# embed thumbnails for videos (requires atomic parsley)
 # echo names of video/audio during metadata download
 
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
 command=(--no-warnings --no-mtime --add-metadata -o "$folder/%(title)s.%(ext)s")
-jsoncommand=(--quiet --skip-download --write-info-json --output "$randid-%(autonumber)03d")
+jsoncommand=(--quiet --skip-download --write-info-json --output "$folder/$randid-%(autonumber)03d-%(title)s.%(ext)s")
 subs="--embed-subs --write-sub --sub-lang enUS,en-US,en --sub-format best"
-
 
 echo "YouTube downloader script v0.105"
 if ! ping -c 1 -q 8.8.8.8 2>/dev/null >/dev/null; then
@@ -38,12 +37,12 @@ while true; do
     case "$reply" in
         # options 1 and 2 are audio only options (without and with playlist)
         # download the best aac audio if available, transcode if necessary
-        "1" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1") ; playlist=false ;;
-        "2" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1") ; playlist=true ;;
+        "1" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1"); jsoncommand+=("--audio-format" "m4a" "--extract-audio"); playlist=false ;;
+        "2" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1"); jsoncommand+=("--audio-format" "m4a" "--extract-audio"); playlist=true ;;
         # options 3 and 4 are video options (without and with playlist)
         # download best resolution up to 1080p, transcode to mp4 if necessary
-        "3" ) command+=(--merge-output-format mp4 --format "(bestvideo+bestaudio/best)[height<=1080]" "$1"); playlist=false ;;
-        "4" ) command+=(--merge-output-format mp4 --format "(bestvideo+bestaudio/best)[height<=1080]" "$1"); playlist=true ;;
+        "3" ) command+=(--merge-output-format mp4 --format "(bestvideo+bestaudio/best)[height<=1080]" "$1"); jsoncommand+=("--merge-output-format" "mp4"); playlist=false ;;
+        "4" ) command+=(--merge-output-format mp4 --format "(bestvideo+bestaudio/best)[height<=1080]" "$1"); jsoncommand+=("--merge-output-format" "mp4"); playlist=true ;;
         "5" )
             if echo "${command[@]}" | grep -q -- '--write-sub'; then
                 # chop off the last 6 values in ${command}, preserving existing word splitting
@@ -118,7 +117,8 @@ if [[ "$playlist" == 'true' ]]; then
     esac
 else
     youtube-dl "${jsoncommand[@]}" --no-playlist "$1"
-    vidtitle="$(jq --raw-output '.title' <$randid-001.info.json)"
+    file="$(jq --raw-output '._filename' <$randid-001*.info.json | sed 's|[0-9]\+-[0-9]\+-\(.*\)|\1|')"
+    vidtitle="$(jq --raw-output '.title' <$randid-001*.info.json)"
     if [[ "$vidtitle" == "null" ]]; then
         echo "Failed to download video information."
         sleep 5
@@ -153,7 +153,8 @@ for i in "${youtubedlExitCodes[@]}"; do
     return=$(( return + i ))
 done
 if [[ $return -eq 0 ]]; then
-    termux-notification --id $randid --group 'downloadfinished' --title "Download Finished" --content "${vidtitle[*]}"
+    file="$(realpath "$file")"
+    termux-notification --id $randid --group 'downloadfinished' --title "Download Finished" --content "${vidtitle[*]}" --action "termux-share \"$file\""
     termux-media-scan "$folder"
 else
     echo "There were errors downloading some files ($return)"
