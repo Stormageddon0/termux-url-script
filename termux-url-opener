@@ -126,7 +126,7 @@ else
     fi
 fi
 # trap exit and interrupt to cleanup a notification
-trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*; termux-wake-unlock; trap - EXIT INT TERM; kill -s INT "$$"' INT
+trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*; termux-wake-unlock; read -r -p "Retry download?[Y/N]" -N 1 reply; if [[ "$reply" == [yY] ]]; then exec "$0" "$@"; fi; trap - EXIT INT TERM; kill -s INT "$$"' INT
 trap 'termux-notification --id $randid --group "downloadfailed" --title "Download Failed" --content "$vidtitle"; rm $randid-*; termux-wake-unlock; trap - EXIT TERM; exit 1' EXIT TERM HUP
 
 termux-notification --id $randid --ongoing --group 'downloading' --title "Downloading" --content "$vidtitle"
