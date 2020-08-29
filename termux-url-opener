@@ -112,7 +112,7 @@ if [[ "$playlist" == 'true' ]]; then
             vidtitle=$(jq --raw-output '.title' <$randid-001.info.json)
         ;;
         * )
-            vidtitle=$({ printf 'Playlist: '; jq --raw-output '.playlist' <$randid-001.info.json;} )
+            vidtitle=$({ printf 'Playlist: '; jq --raw-output '.playlist' <$randid-001*.info.json;} )
         ;;
     esac
 else
