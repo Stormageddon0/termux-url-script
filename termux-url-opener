@@ -37,12 +37,12 @@ while true; do
     case "$reply" in
         # options 1 and 2 are audio only options (without and with playlist)
         # download the best aac audio if available, transcode if necessary
-        "1" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1"); jsoncommand+=("--audio-format" "m4a" "--extract-audio"); playlist=false ;;
-        "2" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1"); jsoncommand+=("--audio-format" "m4a" "--extract-audio"); playlist=true ;;
+        "1" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1"); jsoncommand+=("--audio-format" "m4a" "--extract-audio" "--format" "bestaudio[ext=m4a]/best"); playlist=false ;;
+        "2" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1"); jsoncommand+=("--audio-format" "m4a" "--extract-audio" "--format" "bestaudio[ext=m4a]/best"); playlist=true ;;
         # options 3 and 4 are video options (without and with playlist)
         # download best resolution up to 1080p, transcode to mp4 if necessary
-        "3" ) command+=(--merge-output-format mp4 --format "(bestvideo+bestaudio/best)[height<=1080]" "$1"); jsoncommand+=("--merge-output-format" "mp4"); playlist=false ;;
-        "4" ) command+=(--merge-output-format mp4 --format "(bestvideo+bestaudio/best)[height<=1080]" "$1"); jsoncommand+=("--merge-output-format" "mp4"); playlist=true ;;
+        "3" ) command+=(--merge-output-format mp4 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]" "$1"); jsoncommand+=("--merge-output-format" "mp4" "--format" "bestvideo[height<=1080]+bestaudio/best[height<=1080]"); playlist=false ;;
+        "4" ) command+=(--merge-output-format mp4 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]" "$1"); jsoncommand+=("--merge-output-format" "mp4" "--format" "bestvideo[height<=1080]+bestaudio/best[height<=1080]"); playlist=true ;;
         "5" )
             if echo "${command[@]}" | grep -q -- '--write-sub'; then
                 # chop off the last 6 values in ${command}, preserving existing word splitting
