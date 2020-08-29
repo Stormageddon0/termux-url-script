@@ -7,6 +7,7 @@
 
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
+resolution="720"
 command=(--no-warnings --no-mtime --add-metadata -o "$folder/%(title)s.%(ext)s")
 jsoncommand=(--quiet --skip-download --write-info-json --output "$folder/$randid-%(autonumber)03d-%(title)s.%(ext)s")
 subs="--embed-subs --write-sub --sub-lang enUS,en-US,en --sub-format best"
@@ -40,9 +41,9 @@ while true; do
         "1" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1"); jsoncommand+=("--audio-format" "m4a" "--extract-audio" "--format" "bestaudio[ext=m4a]/best"); playlist=false ;;
         "2" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1"); jsoncommand+=("--audio-format" "m4a" "--extract-audio" "--format" "bestaudio[ext=m4a]/best"); playlist=true ;;
         # options 3 and 4 are video options (without and with playlist)
-        # download best resolution up to 1080p, transcode to mp4 if necessary
-        "3" ) command+=(--merge-output-format mp4 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]" "$1"); jsoncommand+=("--merge-output-format" "mp4" "--format" "bestvideo[height<=1080]+bestaudio/best[height<=1080]"); playlist=false ;;
-        "4" ) command+=(--merge-output-format mp4 --format "bestvideo[height<=1080]+bestaudio/best[height<=1080]" "$1"); jsoncommand+=("--merge-output-format" "mp4" "--format" "bestvideo[height<=1080]+bestaudio/best[height<=1080]"); playlist=true ;;
+        # download best resolution up to 1080p
+        "3" ) command+=(--merge-output-format mkv --format "bestvideo[height<=?$resolution]+bestaudio/best[height<=?$resolution]" "$1"); jsoncommand+=("--merge-output-format" "mkv" "--format" "bestvideo[height<=?$resolution]+bestaudio/best[height<=?$resolution]"); playlist=false ;;
+        "4" ) command+=(--merge-output-format mkv --format "bestvideo[height<=?$resolution]+bestaudio/best[height<=?$resolution]" "$1"); jsoncommand+=("--merge-output-format" "mkv" "--format" "bestvideo[height<=?$resolution]+bestaudio/best[height<=?$resolution]"); playlist=true ;;
         "5" )
             if echo "${command[@]}" | grep -q -- '--write-sub'; then
                 # chop off the last 6 values in ${command}, preserving existing word splitting
