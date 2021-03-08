@@ -10,7 +10,7 @@ folder="/data/data/com.termux/files/home/storage/shared/Youtube"
 resolution="720"
 command=(--no-warnings --no-mtime --add-metadata -o "$folder/%(title)s.%(ext)s")
 jsoncommand=(--quiet --skip-download --write-info-json --output "$folder/$randid-%(autonumber)03d-%(title)s.%(ext)s")
-subs="--embed-subs --write-sub --sub-lang enUS,en-US,en --sub-format best"
+subs="--embed-subs --write-sub --sub-lang en,enUS,en-US --convert-subs ass"
 
 echo "YouTube downloader script v0.105"
 if ! ping -c 1 -q 8.8.8.8 2>/dev/null >/dev/null; then
