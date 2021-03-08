@@ -2,16 +2,20 @@
 # TODO: add ability to download updates from git
 
 log="install-script-log.log"
+truncate "$log"
+
+# small function to improve logging and cleaner code
+LogAndExecute() {
+  echo "$ $@" >>"$log"
+  "$@" >>"$log"
+}
 
 trap 'echo "Error while installing dependencies, check the log"; exit 1' ERR INT
 echo "Installing dependencies..."
-echo "$ apt-get update" >$log
-apt-get update >>$log
-echo "$ apt-get install -y python jq ffmpeg git termux-api" >>$log
-apt-get install --assume-yes atomicparsley python jq ffmpeg git termux-api >>$log 2>/dev/null
-echo "$ pip install --upgrade -q pip youtube-dl" >>$log
-pip install --upgrade pip youtube-dl >>$log
-echo "Install the Termux:API app to get download notifications. "
+LogAndExecute("apt-get update")
+LogAndExecute("apt-get install -y python jq ffmpeg git termux-api")
+LogAndExecute("pip install --upgrade -q pip youtube-dl")
+echo "Install the Termux:API app to get download notifications."
 
 trap - ERR INT
 
