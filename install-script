@@ -11,7 +11,7 @@ echo "$ apt-get install -y python jq ffmpeg git termux-api" >>$log
 apt-get install --assume-yes atomicparsley python jq ffmpeg git termux-api >>$log 2>/dev/null
 echo "$ pip install --upgrade -q pip youtube-dl" >>$log
 pip install --upgrade pip youtube-dl >>$log
-echo "Install the Termux:API app"
+echo "Install the Termux:API app to get download notifications. "
 
 trap - ERR INT
 
