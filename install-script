@@ -2,7 +2,7 @@
 # TODO: add ability to download updates from git
 
 log="install-script-log.log"
-truncate "$log"
+truncate --size 0 "$log"
 
 # small function to improve logging and cleaner code
 LogAndExecute() {
