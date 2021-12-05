@@ -1,16 +1,15 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-#TODO
-# detect youtube mixes?
-# embed thumbnails for videos (requires atomic parsley)
-# echo names of video/audio during metadata download
-
 randid=$RANDOM
 folder="/data/data/com.termux/files/home/storage/shared/Youtube"
 resolution="720"
-command=(--no-warnings --no-mtime --add-metadata -o "$folder/%(title)s.%(ext)s")
+command=(--compat-options "no-live-chat,no-youtube-unavailable-videos" --no-warnings --no-mtime --add-metadata -o "$folder/%(title)s.%(ext)s")
 jsoncommand=(--quiet --skip-download --write-info-json --output "$folder/$randid-%(autonumber)03d-%(title)s.%(ext)s")
-subs="--embed-subs --write-sub --sub-lang en,enUS,en-US --convert-subs ass"
+audioonlycommand=(--audio-format m4a --format "bestaudio[ext=m4a]/best" --extract-audio $1)
+audioonlyjsoncommand=(--audio-format m4a --extract-audio --format "bestaudio[ext=m4a]/best")
+videocommand=(--merge-output-format mkv --format "bestvideo[height<=?$resolution]+bestaudio/best[height<=?$resolution]" $1)
+videojsoncommand=(--merge-output-format mkv --format "bestvideo[height<=?$resolution]+bestaudio/best[height<=?$resolution]")
+subs=(--embed-subs --sub-lang "en,enUS,en-US" --convert-subs ass)
 
 echo "YouTube downloader script v0.105"
 if ! ping -c 1 -q 8.8.8.8 2>/dev/null >/dev/null; then
@@ -27,33 +26,34 @@ while true; do
     echo "3) Video file"
     echo "4) Video playlist"
     echo ""
-    if echo "${command[@]}" | grep -q -- '--write-sub'; then
+    if echo "${command[@]}" | grep -q -- '--embed-subs'; then
         echo "5) Turn off subtitles"
     else
         echo "5) Turn on subtitles"
     fi
+    echo "${command[@]}"
     echo "6) Quit"
     read -r -p "Choose and press enter: " reply
 
     case "$reply" in
         # options 1 and 2 are audio only options (without and with playlist)
         # download the best aac audio if available, transcode if necessary
-        "1" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1"); jsoncommand+=("--audio-format" "m4a" "--extract-audio" "--format" "bestaudio[ext=m4a]/best"); playlist=false ;;
-        "2" ) command+=(--audio-format m4a --format bestaudio[ext=m4a]/best --extract-audio "$1"); jsoncommand+=("--audio-format" "m4a" "--extract-audio" "--format" "bestaudio[ext=m4a]/best"); playlist=true ;;
+        "1" ) command+=(${audioonlycommand[@]}); jsoncommand+=(${audioonlyjsoncommand[@]}); playlist=false ;;
+        "2" ) command+=(${audioonlycommand[@]}); jsoncommand+=(${audioonlyjsoncommand[@]}); playlist=true ;;
         # options 3 and 4 are video options (without and with playlist)
         # download best resolution up to 1080p
-        "3" ) command+=(--merge-output-format mkv --format "bestvideo[height<=?$resolution]+bestaudio/best[height<=?$resolution]" "$1"); jsoncommand+=("--merge-output-format" "mkv" "--format" "bestvideo[height<=?$resolution]+bestaudio/best[height<=?$resolution]"); playlist=false ;;
-        "4" ) command+=(--merge-output-format mkv --format "bestvideo[height<=?$resolution]+bestaudio/best[height<=?$resolution]" "$1"); jsoncommand+=("--merge-output-format" "mkv" "--format" "bestvideo[height<=?$resolution]+bestaudio/best[height<=?$resolution]"); playlist=true ;;
+        "3" ) command+=(${videocommand[@]}); jsoncommand+=(${videojsoncommand[@]}); playlist=false ;;
+        "4" ) command+=(${videocommand[@]}); jsoncommand+=(${videojsoncommand[@]}); playlist=true ;;
         "5" )
-            if echo "${command[@]}" | grep -q -- '--write-sub'; then
+            if echo "${command[@]}" | grep -q -- '--embed-subs'; then
                 # chop off the last 6 values in ${command}, preserving existing word splitting
                 # shellcheck disable=SC2206
-                command=(${command[@]:0:${#command[*]}-6})
+                command=(${command[@]:0:${#command[*]}-${#subs[*]}})
                 # shellcheck disable=SC2206
-                jsoncommand=(${jsoncommand[@]:0:${#jsoncommand[*]}-6})
+                jsoncommand=(${jsoncommand[@]:0:${#jsoncommand[*]}-${#subs[*]}})
             else
-                command+=($subs)
-                jsoncommand+=($subs)
+                command+=(${subs[@]})
+                jsoncommand+=(${subs[@]})
             fi
             reset -Q
             continue
@@ -83,14 +83,14 @@ if [ ! -d "$folder" ]; then
 fi
 cd "$folder" || exit 1
 
-# Update youtube-dl automatically
+# Update yt-dlp automatically
 # check if last attempted update was today
 # Returns true if modified since the beginning of the day
 if [ -n "$(find /data/data/com.termux/files/home -maxdepth 1 -daystart -mtime -1 -type f -name ytdlupdate)" ]; then
     echo "Recently checked for updates"
 else
-    echo "Checking for youtube-dl updates..."
-    if pip install --quiet --upgrade youtube-dl; then
+    echo "Checking for yt-dlp updates..."
+    if pip install --quiet --upgrade yt-dlp; then
         touch /data/data/com.termux/files/home/ytdlupdate
     fi
 fi
@@ -103,22 +103,22 @@ trap 'rm $randid-*.info.json; termux-wake-unlock; trap - EXIT TERM; exit 1' EXIT
 # check if an option to download a playlist was selected
 if [[ "$playlist" == 'true' ]]; then
     # cache download data so we only have to download it once
-    # --ignore-errors so youtube-dl can skip unavailable items
-    youtube-dl "${jsoncommand[@]}" --yes-playlist --ignore-errors "$1"
+    yt-dlp "${jsoncommand[@]}" --yes-playlist "$1"
     # check the number of entries in the playlist, if there is only one or is null, then get the Title instead of the playlist name.
     case "$(jq --raw-output '.n_entries' <$randid-001.info.json)" in
         "0" | "1" | "null" )
             echo "link is a single video, selecting single"
             playlist="false"
-            vidtitle=$(jq --raw-output '.title' <$randid-001.info.json)
+            vidtitle=$(jq --raw-output '.title' <$randid-000.info.json)
         ;;
         * )
-            vidtitle=$({ printf 'Playlist: '; jq --raw-output '.playlist' <$randid-001*.info.json;} )
+            vidtitle=$({ printf 'Playlist: '; jq --raw-output '.title' <$randid-000*.info.json;} )
         ;;
     esac
+
 else
-    youtube-dl "${jsoncommand[@]}" --no-playlist "$1"
-    file="$(jq --raw-output '._filename' <$randid-001*.info.json | sed 's|[0-9]\+-[0-9]\+-\(.*\)|\1|')"
+    yt-dlp "${jsoncommand[@]}" --no-playlist "$1"
+    file="$(jq --raw-output '.fulltitle+"."+.ext' <$randid-001*.info.json)"
     vidtitle="$(jq --raw-output '.title' <$randid-001*.info.json)"
     if [[ "$vidtitle" == "null" ]]; then
         echo "Failed to download video information."
@@ -132,11 +132,11 @@ trap 'termux-notification --id $randid --group "downloadfailed" --title "Downloa
 
 termux-notification --id $randid --ongoing --group 'downloading' --title "Downloading" --content "$vidtitle"
 echo "Beginning Download"
-# start youtube-dl
+# start yt-dlp
 for jsonfile in "$randid"-*.info.json
 do
     #shellcheck disable=SC2086
-    youtube-dl --load-info-json "$jsonfile" "${command[@]}"
+    yt-dlp --load-info-json "$jsonfile" "${command[@]}"
     youtubedlExitCodes+=($?)
     if [[ ${youtubedlExitCodes[${#youtubedlExitCodes[*]}]} -eq 0 ]]; then
         # remove json files
@@ -154,7 +154,9 @@ for i in "${youtubedlExitCodes[@]}"; do
     return=$(( return + i ))
 done
 if [[ $return -eq 0 ]]; then
-    file="$(realpath "$file")"
+    if [[ $playlist == false ]]; then
+        file="$(realpath "$file")"
+    fi
     termux-notification --id $randid --group 'downloadfinished' --title "Download Finished" --content "${vidtitle[*]}" --action "termux-share \"$file\""
     termux-media-scan "$folder"
 else

@@ -14,7 +14,7 @@ trap 'echo "Error while installing dependencies, check the log"; exit 1' ERR INT
 echo "Installing dependencies..."
 LogAndExecute "apt-get update"
 LogAndExecute "apt-get install -y python jq ffmpeg git termux-api"
-LogAndExecute "pip install --upgrade -q pip youtube-dl"
+LogAndExecute "pip install --upgrade -q pip yt-dlp"
 echo "Install the Termux:API app to get download notifications."
 
 trap - ERR INT
