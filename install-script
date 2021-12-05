@@ -7,14 +7,14 @@ truncate --size 0 "$log"
 # small function to improve logging and cleaner code
 LogAndExecute() {
   echo "$ $@" >>"$log"
-  "$@" >>"$log"
+  $@ >>"$log"
 }
 
 trap 'echo "Error while installing dependencies, check the log"; exit 1' ERR INT
 echo "Installing dependencies..."
-LogAndExecute("apt-get update")
-LogAndExecute("apt-get install -y python jq ffmpeg git termux-api")
-LogAndExecute("pip install --upgrade -q pip youtube-dl")
+LogAndExecute "apt-get update"
+LogAndExecute "apt-get install -y python jq ffmpeg git termux-api"
+LogAndExecute "pip install --upgrade -q pip youtube-dl"
 echo "Install the Termux:API app to get download notifications."
 
 trap - ERR INT
